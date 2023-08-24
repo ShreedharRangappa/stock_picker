@@ -282,7 +282,7 @@ class kotak():
             
 
 if __name__ == "__main__":
-    k = kotak(path_ini='/home/administrator/git/stock_bot/config.ini')
+    k = kotak(path_ini='./config.ini')
     #k.updateTokenNames()
     k.kotak_login()
     k.kotat_subscribe()
