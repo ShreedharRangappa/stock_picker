@@ -17,14 +17,34 @@ import os
 
 
 class kotak():
-    def __init__(self, event=None) -> None:
+    def __init__(self, path_ini=None,event=None, logger =None) -> None:
+        if os.path.exists(path_ini):
+            self.path_ini = path_ini
+        else:
+            assert False ,"INI path error"
+            
+        if logger == None:
+            self.logger =True
+        else:
+            self.logger =logger
+            
+        
+        
         # Configure prase
         self.conf = self.configure_params()
         # Get params
+        self.readConfigParams()
 
         self.event = event
-
-        # self.kotak_login()
+        self.recount =0
+        self.count_calls=0
+        
+        # default values
+        self.client = None
+        self.tokens = None
+        
+        
+        # self.getTokenCmpNames()
 
     def configure_params(self,):
         # Change the path accordingly
@@ -34,7 +54,7 @@ class kotak():
             conf = ConfigParser.ConfigParser()
         # conf_file=os.path.join(pwd,"src/mo_settings.ini")
 
-        conf.read('/home/vdgs/git/stock_bot/config.ini')
+        conf.read(self.path_ini)
         return conf
 
     def readConfigParams(self,):
@@ -50,13 +70,16 @@ class kotak():
         self.url = self.conf.get('connection', 'url')
         self.auth = self.conf.get('connection', 'auth')
         self.token_api = self.conf.get('connection', 'token_api')
+        self.ip = self.conf.get('connection', 'ip')
+        self.host = self.conf.get('connection', 'host')
+        self.cash_url = self.conf.get('connection', 'info_cash')
         self.mode = self.conf.get('mode', 'mode')
         self.verbose = self.conf.get('general', 'verbose')
+        self.token_cmp_names = self.conf.get('files', 'token_list')
 
     def updateTokenNames(self,):
         # TODO: add a logic to refresh the token_cmp_names files
-        self.cash_url = self.conf.get('connection', 'info_cash')
-        self.token_cmp_names = self.conf.get('files', 'token_list')
+        
 
         date = datetime.datetime.now()
 
@@ -104,20 +127,80 @@ class kotak():
         
         
 
-
-        with open(self.token_cmp_names, 'r') as f:
-            data_test = json.load(f)
+    def getTokenCmpNames(self,):
+        if (self.recount>2):
+            return False
+        else:
+            self.recount =self.recount+1
+                    
+        if os.path.exists(self.token_cmp_names):
+            
+            with open(self.token_cmp_names, 'r') as f:
+                self.tokens = json.load(f)
+            
+            return True
+            
+        else:
+            
+            self.updateTokenNames()
+            self.getTokenCmpNames()
         
-        print(data_test['instrumentToken'][0], data_test['instrumentName'][0], data_test['name'][0])
-
+        
+            
     def kotak_login(self,):
+        try:
+            self.client = ks_api.KSTradeApi(access_token=self.access_token, userid=self.userid, consumer_key=self.consumer_key, ip=self.ip,
+                                            app_id=self.app_id, host=self.host, consumer_secret = self.consumer_secret, logger=self.logger)
+            self.client.login(password=self.password)
+            # Exception has occurred: ApiException
+            self.client.session_2fa(access_code=self.accesscode)
+            
+        except Exception as e:
+            print(e)
+    
+    
+    def callback_method(self,message):
+        print(message)   
+           
+    def kotat_subscribe(self,):    
+        print("Your logic/computation will come here.")
+        self.client.subscribe(input_tokens="745,754,1900,18706", callback=self.callback_method)
+        # self.client.subscribe(input_tokens="745,754,1900,9516, 43865, 891, 607, 13140, 5653, 10586, 26784, 94320, 16680, 15947, 717, 411, 27206, 4968, 5038, 109230, 413, 19145, 720, 904, 727, 2574, 27632, 15452"
+        # , callback=self.callback_method)
+    
+ 
+           
+    def kotat_subscribe_(self,call_fun):    
+        print("Your logic/computation will come here.")
+        self.client.subscribe(input_tokens="745,754,1900,1839,24614", callback=call_fun)
+        # self.client.subscribe(input_tokens="745,754,1900,9516, 43865, 891, 607, 13140, 5653, 10586, 26784, 94320, 16680, 15947, 717, 411, 27206, 4968, 5038, 109230, 413, 19145, 720, 904, 727, 2574, 27632, 15452"
+        # , callback=self.callback_method)
+    
+    
+    def get_history(self,):
+        try:
+            # Get historical prices
+            self.client.history("historicalprices",{"exchange":"nse","cocode":"1900","fromdate":"01-jan-2014","todate":"08-oct-2015"})
+        except Exception as e:
+            print("Exception when calling Historical API->details: %s\n" % e)
+    
+    def fetch_live_short(self,token=None):
+        if token == None:
+            return False,None
+        try:
+            data =self.client.quote(instrument_token = token)
+            self.count_calls=self.count_calls+1
+            print("count :",self.count_calls,"token:",token)
+            return  True, data
+        except Exception as e:
+            print(e)
+            return False,None
+        
+        
+        
+        
 
-        self.client = ks_api.KSTradeApi(access_token=self.access_token, userid=self.userid, consumer_key=self.consumer_key, ip="127.0.0.1",
-                                        app_id=self.app_id, host="https://tradeapi.kotaksecurities.com/apim")  # , consumer_secret = consumer_secret)
-        self.client.login(password=self.password)
-        # Exception has occurred: ApiException
-        self.client.session_2fa(access_code=self.accesscode)
-
+    def fetch_live_depth(self,):
         ## Test ##
         print(self.client.quote(instrument_token=110))
         url = 'https://tradeapi.kotaksecurities.com/apim/scripmaster/1.1/filename'
@@ -155,7 +238,7 @@ class kotak():
             else:
                 # self.event.set()
                 sio = socketio.Client(reconnection=True, request_timeout=20,
-                                      reconnection_attempts=5, engineio_logger=True, logger=True)
+                                      reconnection_attempts=5, engineio_logger=True, logger=self.logger)
 
                 def setInterval(func, time):
                     e = threading.Event()
@@ -195,9 +278,11 @@ class kotak():
             print(f'HTTP error occurred :{h}')
         except Exception as e:
             print(f'Error occurred :{e}')
-
+            
+            
 
 if __name__ == "__main__":
-    k = kotak()
-    k.updateTokenNames()
+    k = kotak(path_ini='/home/administrator/git/stock_bot/config.ini')
+    #k.updateTokenNames()
     k.kotak_login()
+    k.kotat_subscribe()

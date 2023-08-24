@@ -19,13 +19,17 @@ def kotak_login():
     consumer_secret="ZJj4e2qo7YN4FfMEm6BGNq8f7Aoa"
     app_id="test"
     password = "Trade@1988"
+    password  = "23@K1988"
     pw="DGBD1880"
-    accesscode= "8380"
+    accesscode= "4683"
 
 
     client = ks_api.KSTradeApi(access_token = access_token, userid = userid, consumer_key = consumer_key,ip = "127.0.0.1", app_id = app_id, host = "https://tradeapi.kotaksecurities.com/apim")#, consumer_secret = consumer_secret)
     client.login(password = password)
     client.session_2fa(access_code = accesscode)
+    
+    print(client.quote(instrument_token = 110))
+
 
 
 
@@ -33,14 +37,14 @@ def kotak_login():
     AUTH ="2ERqlgIlO7mZhYGGLz8l8EPdY_ca:ZJj4e2qo7YN4FfMEm6BGNq8f7Aoa"
     token_api = "https://wstreamer.kotaksecurities.com/feed/auth/token" 
 
-    AUTH_BASE64 = base64.b64encode(AUTH.encode("UTF-8"))
-    # print(AUTH_BASE64)
-    PAYLOAD = {"authentication":AUTH_BASE64.decode("UTF-8")}
-    # print(PAYLOAD)
-    response = requests.post(url=token_api, data =PAYLOAD)
-    # print(response)
-    jsonResponse=response.json()
-    # print(jsonResponse)
+    # AUTH_BASE64 = base64.b64encode(AUTH.encode("UTF-8"))
+    # # print(AUTH_BASE64)
+    # PAYLOAD = {"authentication":AUTH_BASE64.decode("UTF-8")}
+    # # print(PAYLOAD)
+    # response = requests.post(url=token_api, data =PAYLOAD)
+    # # print(response)
+    # jsonResponse=response.json()
+    # # print(jsonResponse)
 
 
 
