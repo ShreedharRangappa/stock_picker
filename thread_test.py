@@ -26,7 +26,7 @@ class DUMMY_KOTAK():
         # Set logger 
         today = date.today()
         d = today.strftime("%Y%m%d")
-        log_path = "./logs/"+d
+        log_path = "/home/administrator/project/stockbot/logs/"+d
         log_path_file = log_path+"/app.log"
         
         try:
@@ -79,7 +79,7 @@ class DUMMY_KOTAK():
         self.kk = kotak(
             path_ini='./config.ini', logger=self.logger)
         self.dump_threshold = self.maxQ
-        self.csv_dump_path = "./daily_dumps/"+str(d)+".xlsx"
+        self.csv_dump_path = "/home/administrator/project/stockbot/daily_dumps/"+str(d)+".xlsx"
         self.createXLXS()
         
         
