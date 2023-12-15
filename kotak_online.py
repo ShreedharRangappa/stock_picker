@@ -158,23 +158,32 @@ class kotak():
         except Exception as e:
             print(e)
     
-    
+    def get_quote(self,instrument_token):
+        quote_details= ""
+        if instrument_token != "":
+            try:
+                quote_details = self.client.quote(instrument_token=str(instrument_token))
+                
+            except Exception as e:
+                print(f"{e} -- {instrument_token}")
+
+
+        return quote_details
     def callback_method(self,message):
         print(message)   
            
     def kotat_subscribe(self,):    
         print("Your logic/computation will come here.")
-        self.client.subscribe(input_tokens="745,754,1900,18706", callback=self.callback_method)
-        # self.client.subscribe(input_tokens="745,754,1900,9516, 43865, 891, 607, 13140, 5653, 10586, 26784, 94320, 16680, 15947, 717, 411, 27206, 4968, 5038, 109230, 413, 19145, 720, 904, 727, 2574, 27632, 15452"
-        # , callback=self.callback_method)
+        # self.client.subscribe(input_tokens="754", callback=self.callback_method)
+        self.client.subscribe(input_tokens="745,754,1900,9516, 43865, 891, 607, 13140, 5653, 10586, 26784, 94320, 16680, 15947, 717, 411, 27206, 4968, 5038, 109230, 413, 19145, 720, 904, 727, 2574, 27632, 15452"
+        , callback=self.callback_method)
     
  
            
     def kotat_subscribe_(self,call_fun):    
         print("Your logic/computation will come here.")
-        self.client.subscribe(input_tokens="745,754,1900,1839,24614", callback=call_fun)
-        # self.client.subscribe(input_tokens="745,754,1900,9516, 43865, 891, 607, 13140, 5653, 10586, 26784, 94320, 16680, 15947, 717, 411, 27206, 4968, 5038, 109230, 413, 19145, 720, 904, 727, 2574, 27632, 15452"
-        # , callback=self.callback_method)
+        self.client.subscribe(input_tokens="754", callback=call_fun)
+        
     
     
     def get_history(self,):
