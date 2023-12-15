@@ -3,7 +3,6 @@ from queue import Queue
 from time import sleep, time
 import datetime
 from datetime import date
-from openpyxl import Workbook,load_workbook
 from kotak_online import kotak
 import os
 import random
