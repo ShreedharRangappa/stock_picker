@@ -74,8 +74,10 @@ class kotak():
         self.host = self.conf.get('connection', 'host')
         self.cash_url = self.conf.get('connection', 'info_cash')
         self.mode = self.conf.get('mode', 'mode')
-        self.verbose = self.conf.get('general', 'verbose')
+        self.verbose = self.conf.getboolean('general', 'verbose')
         self.token_cmp_names = self.conf.get('files', 'token_list')
+        self.save_path = self.conf.get('save_path', 'path')
+        self.delta = self.conf.getint("general","delta_sec")
 
     def updateTokenNames(self,):
         # TODO: add a logic to refresh the token_cmp_names files
@@ -294,4 +296,13 @@ if __name__ == "__main__":
     k = kotak(path_ini='./config.ini')
     #k.updateTokenNames()
     k.kotak_login()
-    k.kotat_subscribe()
+
+
+''' ERROR RESPONSES
+-Invalid access code
+Reason: Please enter a valid access code
+HTTP response body: {"fault":{"code":70051,"description":"Access Code entered by client is invalid. Please enter correct access code.","message":"Please enter a valid access code"}}
+
+-
+
+'''
