@@ -14,10 +14,11 @@ import urllib3
 urllib3.disable_warnings()
 import json
 import os
+import datetime
 
 
 class kotak():
-    def __init__(self, path_ini=None,event=None, logger =None) -> None:
+    def __init__(self, access_code , path_ini=None, event=None, logger =None) -> None:
         if os.path.exists(path_ini):
             self.path_ini = path_ini
         else:
@@ -28,7 +29,7 @@ class kotak():
         else:
             self.logger =logger
             
-        
+        self.access_code = access_code
         
         # Configure prase
         self.conf = self.configure_params()
@@ -43,7 +44,12 @@ class kotak():
         self.client = None
         self.tokens = None
         
-        
+        #Todays date
+        date = datetime.datetime.now()
+
+        dd, mm, yyyy = date.strftime("%d"), date.strftime(
+            "%m"), date.strftime("%Y")
+        self.todays_date = f'{yyyy}-{mm}-{dd}'
         # self.getTokenCmpNames()
 
     def configure_params(self,):
@@ -66,7 +72,9 @@ class kotak():
         self.app_id = self.conf.get('credentials', 'app_id')
         self.password = self.conf.get('credentials', 'password')
         self.pw = self.conf.get('credentials', 'pw')
-        self.accesscode = self.conf.get('credentials', 'accesscode')
+        accesscode = self.conf.get('credentials', 'accesscode')
+        if accesscode == '0':
+            self.accesscode = str(self.access_code)
         self.url = self.conf.get('connection', 'url')
         self.auth = self.conf.get('connection', 'auth')
         self.token_api = self.conf.get('connection', 'token_api')
@@ -78,6 +86,11 @@ class kotak():
         self.token_cmp_names = self.conf.get('files', 'token_list')
         self.save_path = self.conf.get('save_path', 'path')
         self.delta = self.conf.getint("general","delta_sec")
+        self.check_based_on_trade_date =self.conf.getboolean("general","check_based_on_trade_date")
+        self.stop_shell_script_after = self.conf.getint("general","stop_shell_script_after")
+
+
+
 
     def updateTokenNames(self,):
         # TODO: add a logic to refresh the token_cmp_names files
@@ -160,17 +173,34 @@ class kotak():
         except Exception as e:
             print(e)
     
+
+    def validate_quote(self,quote_details):
+        now_hh= datetime.datetime.now().strftime('%H')
+        close_it =False
+
+        if(int(now_hh)>=self.stop_shell_script_after):
+            close_it =True
+
+        if self.check_based_on_trade_date :
+            trade_date, trade_time = quote_details['success'][0]['BD_last_traded_time'].split(' ')
+            
+            if(trade_date != self.todays_date):
+                return "", close_it
+            
+        return quote_details,close_it
+
+
     def get_quote(self,instrument_token):
         quote_details= ""
         if instrument_token != "":
             try:
                 quote_details = self.client.quote(instrument_token=str(instrument_token))
-                
+                close_it,quote_details = self.validate_quote(quote_details)
             except Exception as e:
                 print(f"{e} -- {instrument_token}")
 
 
-        return quote_details
+        return quote_details, close_it
     def callback_method(self,message):
         print(message)   
            

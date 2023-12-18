@@ -10,13 +10,13 @@ import random
 import pandas as pd
 import json
 import logging
-
+import sys
 
 
 
 
 class DUMMY_KOTAK():
-    def __init__(self) -> None:
+    def __init__(self,access_code) -> None:
         
         logger = logging.getLogger(__name__)
         
@@ -29,7 +29,7 @@ class DUMMY_KOTAK():
         assert os.path.exists(conf_path) , f"Missing {conf_path}. Exiting"
         assert os.path.exists(self.instrument_token_file_path) , f"Missing {self.instrument_token_file_path}. Exiting"
         
-        self.kk = kotak(path_ini='./config.ini')
+        self.kk = kotak(access_code,path_ini='./config.ini')
 
         # Directory generation
         if not os.path.exists(self.kk.save_path):
@@ -49,12 +49,15 @@ class DUMMY_KOTAK():
         data = json.load(f)
         self.instrument_token = data["userinstrumentTokens"]
 
+        # Default vars
+        self.close_it = False
+
     def looped_get_quote(self,):
         
         delta_sec = self.kk.delta
         elapse_time_sec = 0
-
-        while(True):
+        count=0
+        while(not self.close_it):
 
             if elapse_time_sec>0:
                 time.sleep(elapse_time_sec)
@@ -67,8 +70,10 @@ class DUMMY_KOTAK():
                 elapse_time_sec = 0
             else:
                 elapse_time_sec = delta_sec -inner_delta
-                print("sleep time ",elapse_time_sec)
-
+            
+            
+            print(f"count: {count}\t| tk {len(self.instrument_token)}\t| st {elapse_time_sec}\t| pt {inner_delta}")
+            count = count+1
 
     def get_quote_of_list(self,):
         """
@@ -84,7 +89,7 @@ class DUMMY_KOTAK():
         else:
             for instrument_token_ in self.instrument_token:
                 try:
-                    quote_ = self.kk.get_quote(instrument_token=str(instrument_token_))
+                    self.close_it,quote_ = self.kk.get_quote(instrument_token=str(instrument_token_))
                     if quote_ != "":
                         data.append(quote_)
                     # print(quote_)
@@ -110,9 +115,13 @@ class DUMMY_KOTAK():
             print(f"{self.save_quote2text.__name__} Time : {time.process_time() - start} ")
 
 
-
+    def auto_switch_off_logic(self,):
+        pass
+        
 if __name__ == "__main__":
-    e = DUMMY_KOTAK()
+    access_code  = sys.argv[1]
+    print("access_code is ", access_code)
+    e = DUMMY_KOTAK(access_code)
     e.kk.kotak_login()
     e.looped_get_quote()
 
