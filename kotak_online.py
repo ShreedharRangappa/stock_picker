@@ -10,11 +10,14 @@ import requests
 from time import time, sleep
 import ks_api_client
 from ks_api_client import ks_api
+from ks_api_client.exceptions import ApiValueError, ApiException
 import urllib3
 urllib3.disable_warnings()
 import json
 import os
 import datetime
+import concurrent.futures
+
 
 
 class kotak():
@@ -43,13 +46,14 @@ class kotak():
         # default values
         self.client = None
         self.tokens = None
+        self.thread_loops=0
         
         #Todays date
         date = datetime.datetime.now()
 
         dd, mm, yyyy = date.strftime("%d"), date.strftime(
             "%m"), date.strftime("%Y")
-        self.todays_date = f'{yyyy}-{mm}-{dd}'
+        self.todays_date = f'{dd}/{mm}/{yyyy}'
         # self.getTokenCmpNames()
 
     def configure_params(self,):
@@ -88,6 +92,7 @@ class kotak():
         self.delta = self.conf.getint("general","delta_sec")
         self.check_based_on_trade_date =self.conf.getboolean("general","check_based_on_trade_date")
         self.stop_shell_script_after = self.conf.getint("general","stop_shell_script_after")
+        self.threaded_logic = self.conf.getboolean("general","threaded_logic")
 
 
 
@@ -170,8 +175,9 @@ class kotak():
             # Exception has occurred: ApiException
             self.client.session_2fa(access_code=self.accesscode)
             
-        except Exception as e:
+        except ApiException as e:
             print(e)
+            exit()
     
 
     def validate_quote(self,quote_details):
@@ -181,26 +187,55 @@ class kotak():
         if(int(now_hh)>=self.stop_shell_script_after):
             close_it =True
 
+        
+
         if self.check_based_on_trade_date :
-            trade_date, trade_time = quote_details['success'][0]['BD_last_traded_time'].split(' ')
+            if isinstance (quote_details ,list):
+                new_quote=[]
+                for q_details in quote_details:
+                    if isinstance(q_details, dict):
+                    
+                        trade_date, trade_time = q_details['success'][0]['BD_last_traded_time'].split(' ')
             
-            if(trade_date != self.todays_date):
+                        if(trade_date == self.todays_date):
+                            new_quote.append(q_details)
+
+                quote_details = new_quote
+
+            elif isinstance(quote_details, dict):
+            
+                trade_date, trade_time = quote_details['success'][0]['BD_last_traded_time'].split(' ')
+            
+                if(trade_date != self.todays_date):
+                    return "", close_it
+            else:
                 return "", close_it
-            
+
         return quote_details,close_it
 
-
     def get_quote(self,instrument_token):
+        # print("Token name",instrument_token)
+        try:
+            rt = self.client.quote(instrument_token=str(instrument_token))
+            return rt
+        except ApiException as e:
+            return ""
+
+    def get_quote_non_threaded(self,instrument_token):
         quote_details= ""
+        close_it =False
+
         if instrument_token != "":
             try:
-                quote_details = self.client.quote(instrument_token=str(instrument_token))
-                close_it,quote_details = self.validate_quote(quote_details)
+                quote_details = self.get_quote(instrument_token)
+                quote_details,close_it = self.validate_quote(quote_details)
             except Exception as e:
                 print(f"{e} -- {instrument_token}")
 
 
-        return quote_details, close_it
+        return close_it,quote_details
+
+
     def callback_method(self,message):
         print(message)   
            
@@ -319,8 +354,58 @@ class kotak():
             print(f'HTTP error occurred :{h}')
         except Exception as e:
             print(f'Error occurred :{e}')
+
+
+
+
+
+
+
+
+
+
+    def get_quote_threaded(self,chunks, timeout=5):
+        
+        
+        results =[]
+
+        if self.thread_loops ==0:
+            # Create a ThreadPoolExecutor
+            self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=len(chunks))
+        
             
-            
+        # Submit tasks to the executor
+        futures = [self.executor.submit(self.get_quote, chunk) for chunk in chunks]
+
+        # Wait for all tasks to complete and get the results
+        # results = [future.result() for future in concurrent.futures.as_completed(futures)]
+        
+        
+        # Signal that no more tasks will be submitted
+        # executor.shutdown(wait=False)
+        
+        # Wait for all tasks to complete with a timeout
+        try:
+            completed, not_completed = concurrent.futures.wait(futures, timeout=timeout) # timeout 2 sec
+        except concurrent.futures.TimeoutError:
+            # Handle timeout (e.g., cancel the remaining tasks)
+            print("Timeout reached. Cancelling remaining tasks.")
+            for future in not_completed:
+                future.cancel()
+        except ApiException as e:
+            print(e)
+    
+        # Get the results from completed tasks
+        results = [future.result() for future in completed]
+
+        print(f"The sum of the squared numbers is: {len(results)}")  
+    
+
+        self.thread_loops = self.thread_loops+1
+
+        return results
+    
+
 
 if __name__ == "__main__":
     k = kotak(path_ini='./config.ini')

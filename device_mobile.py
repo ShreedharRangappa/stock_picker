@@ -43,7 +43,10 @@ class DUMMY_KOTAK():
         self.saving_text_path = os.path.join(self.kk.save_path,f"{x_str}.txt")
         with open(self.saving_text_path, 'w') as f:
             f.write(f"{x_str}\n")
+        f.close()
 
+        # Open to append
+        self.append_file = open(self.saving_text_path, 'a') 
         # Get instrument token list
         f = open(self.instrument_token_file_path)
         data = json.load(f)
@@ -80,48 +83,64 @@ class DUMMY_KOTAK():
         instrument_token="717,754,1900,2574,14111"              
         """
         
-        data=[]
+        quote_details=[]
 
-        start = time.process_time()
+        start = time.time()
         
         if len(self.instrument_token)<=0:
             print("No Instrument Token provided")
         else:
-            for instrument_token_ in self.instrument_token:
-                try:
-                    self.close_it,quote_ = self.kk.get_quote(instrument_token=str(instrument_token_))
-                    if quote_ != "":
-                        data.append(quote_)
-                    # print(quote_)
-                except Exception as e:
-                    print(f"{e} -- {instrument_token_}")
-                    self.instrument_token.remove(int(instrument_token_))
-
+            if not self.kk.threaded_logic:
+                for instrument_token_ in self.instrument_token:
+                    
+                    try:
+                        self.close_it,quote_ = self.kk.get_quote_non_threaded(instrument_token=str(instrument_token_))
+                        if quote_ != "":
+                            quote_details.append(quote_)
+                        else:
+                            print(f"-- {instrument_token_}")
+                            self.instrument_token.remove(int(instrument_token_))
+                    except Exception as e:
+                        if "Reason: Please enter a valid access code " in e:
+                            exit()
+                        else:
+                            print(f"{e} -- {instrument_token_}")
+                            self.instrument_token.remove(int(instrument_token_))
+            else:
+                quote_details = self.kk.get_quote_threaded(chunks=self.instrument_token)
+                quote_details,self.close_it = self.kk.validate_quote(quote_details)
+                
         if self.kk.verbose:
-            print(f"{self.get_quote_of_list.__name__} Time : {time.process_time() - start} ")
+            print(f"{self.get_quote_of_list.__name__} Time : {time.time() - start} ")
 
         # Save into Text
-        self.save_quote2text(data)
+        self.save_quote2text(quote_details)
 
 
     def save_quote2text(self, data_write):
         
-        start = time.process_time()
-        with open(self.saving_text_path, 'a') as f:
-            for data in data_write:
-                f.write(f"{data}\n")
-        f.close()
+        start = time.time()
+        write_count=0
+        for data in data_write:
+            self.append_file.write(f"{data}\n")
+            write_count=write_count+1
+
+        print("write_count",write_count)
+
         if self.kk.verbose:
-            print(f"{self.save_quote2text.__name__} Time : {time.process_time() - start} ")
+            print(f"{self.save_quote2text.__name__} Time : {time.time() - start} ")
 
 
     def auto_switch_off_logic(self,):
         pass
         
 if __name__ == "__main__":
-    access_code  = sys.argv[1]
-    print("access_code is ", access_code)
-    e = DUMMY_KOTAK(access_code)
+    # access_code  = sys.argv[1]
+    # print("access_code is ", access_code)
+    # e = DUMMY_KOTAK(access_code)
+
+
+    e = DUMMY_KOTAK(7959)
     e.kk.kotak_login()
     e.looped_get_quote()
 
